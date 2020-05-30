@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}Flasky{% endblock %}
+
+{% block page_content %}
+<div class="page-header">
+    <h1>Register!</h1>
+</div>
+{{ wtf.quick_form(form) }}
+<p>
+ You are already registered?
+ <a href="{{ url_for('auth.login') }}">
+ Click here to log in
+ </a>
+</p>
+
+{% endblock %}

@@ -1,0 +1,1 @@
+Hola, un nuevo usuario se ha registrado en tu sitio web, su nombre es: {{ name }}
