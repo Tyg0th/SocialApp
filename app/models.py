@@ -1,8 +1,9 @@
 from . import db
+from app.exceptions import ValidationError
 import hashlib
 from datetime import datetime
 from flask_login import UserMixin
-from flask import current_app
+from flask import current_app, url_for
 from werkzeug.security import generate_password_hash, check_password_hash
 from . import login_manager
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
@@ -124,6 +125,19 @@ class User(UserMixin, db.Model):
         if self.email is not None and self.avatar_hash is None:
             self.avatar_hash = self.gravatar_hash()
 
+    def to_json(self):
+        json_user = {
+            'url': url_for('api.get_user', id=self.id),
+            'username': self.username,
+            'member_since': self.member_since,
+            'last_seen': self.last_seen,
+            'posts_url': url_for('api.get_user_posts', id=self.id),
+            'followed_posts_url': url_for('api.get_user_followed_posts',
+                                          id=self.id),
+            'post_count': self.posts.count()
+        }
+        return json_user
+
     def gravatar_hash(self):
         return hashlib.md5(self.email.lower().encode('utf-8')).hexdigest()
 
@@ -195,6 +209,20 @@ class User(UserMixin, db.Model):
         db.session.add(self)
         return True
 
+    def generate_auth_token(self, expiration):
+        s = Serializer(current_app.config['SECRET_KEY'],
+                       expires_in=expiration)
+        return s.dumps({'id': self.id}).decode('utf-8')
+
+    @staticmethod
+    def verify_auth_token(token):
+        s = Serializer(current_app.config['SECRET_KEY'])
+        try:
+            data = s.loads(token)
+        except:
+            return None
+        return User.query.get(data['id'])
+
 
 class Post(db.Model):
     __tablename__ = 'posts'
@@ -203,6 +231,24 @@ class Post(db.Model):
     timestamp = db.Column(db.DateTime, index=True, default=datetime.utcnow)
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     comments = db.relationship('Comment', backref='post', lazy='dynamic')
+
+    def to_json(self):
+        json_post = {
+            'url': url_for('api.get_post', id=self.id),
+            'body': self.body,
+            'timestamp': self.timestamp,
+            'author_url': url_for('api.get_user', id=self.author_id),
+            'comments_url': url_for('api.get_post_comments', id=self.id),
+            'comment_count': self.comments.count()
+        }
+        return json_post
+
+    @staticmethod
+    def from_json(json_post):
+        body = json_post.get('body')
+        if body is None or body == '':
+            raise ValidationError('post does not have a body')
+        return Post(body=body)
 
 
 class Comment(db.Model):
@@ -214,3 +260,19 @@ class Comment(db.Model):
     author_id = db.Column(db.Integer, db.ForeignKey('users.id'))
     post_id = db.Column(db.Integer, db.ForeignKey('posts.id'))
 
+    def to_json(self):
+        json_comment = {
+            'url': url_for('api.get_comment', id=self.id),
+            'post_url': url_for('api.get_post', id=self.post_id),
+            'body': self.body,
+            'timestamp': self.timestamp,
+            'author_url': url_for('api.get_user', id=self.author_id)
+        }
+        return json_comment
+
+    @staticmethod
+    def from_json(json_post):
+        body = json_post.get('body')
+        if body is None or body == '':
+            raise ValidationError('post does not have a body')
+        return Post(body=body)
