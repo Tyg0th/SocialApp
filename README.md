@@ -4,4 +4,6 @@
 
 I used: Bootstrap,SQLite, WTForms, itsdangerous for token generation and validation.
 
+#### Demo Live: https://jsv2social.herokuapp.com/
+
 ### Enjoy!
